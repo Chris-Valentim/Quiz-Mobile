@@ -1,0 +1,57 @@
+name: Deploy web para GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Permite apenas um deploy concorrente
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configura Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instala dependencias
+        run: npm install --no-audit --no-fund
+
+      - name: Exporta o site estatico
+        run: npx expo export -p web
+
+      - name: Desabilita o Jekyll (necessario p/ pastas _expo)
+        run: touch dist/.nojekyll
+
+      - name: Configura o GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Faz upload do artefato
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publica no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
